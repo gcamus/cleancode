@@ -14,6 +14,6 @@ public interface RoomRepository {
 
 	List<Room> findAvailableRooms(Reservation requestReservation, int numberOfGuest);
 
-	Room findOne(String roomNumber);
+	Room findOne(String roomNumber) throws RoomDoesNotExistException;
 
 }

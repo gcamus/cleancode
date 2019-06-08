@@ -1,11 +1,13 @@
 package com.fdjgs.training.hotelcuzco.infrastructure;
 
+import com.fdjgs.training.hotelcuzco.domain.BookingRequest;
+import com.fdjgs.training.hotelcuzco.domain.HostelClosedException;
 import com.fdjgs.training.hotelcuzco.domain.Reservation;
 import com.fdjgs.training.hotelcuzco.domain.Room;
+import com.fdjgs.training.hotelcuzco.domain.Season;
 import com.fdjgs.training.hotelcuzco.repository.RoomRepository;
 
 import java.time.LocalDate;
-import java.util.List;
 
 /**
  * Created by Lotsys on 05/06/2019.
@@ -18,18 +20,32 @@ public class RoomController {
 		this.roomRepository = roomRepository;
 	}
 
-	public List<Room> displayAvailableRooms(LocalDate checkin, LocalDate checkout, int numberOfGuest) {
+	public BookingRequest findAvailableRooms(LocalDate checkin, LocalDate checkout, int numberOfGuest) {
+		checkHostelIsNotClosed(checkin, checkout);
+
 		Reservation requestReservation = Reservation.of(checkin, checkout);
 
-		return roomRepository.findAvailableRooms(requestReservation, numberOfGuest);
+		return BookingRequest.buildBookingRequest(checkin, checkout, roomRepository.findAvailableRooms(requestReservation, numberOfGuest));
 	}
 
-	public void bookARoom(String roomNumber, LocalDate checkin, LocalDate checkout) {
+	public Room bookARoom(String roomNumber, LocalDate checkin, LocalDate checkout) {
+		checkHostelIsNotClosed(checkin, checkout);
+
 		Room requestedRoom = roomRepository.findOne(roomNumber);
 
 		Reservation requestedReservation = Reservation.of(checkin, checkout);
 		requestedRoom.book(requestedReservation);
 
-		roomRepository.save(requestedRoom);
+		return roomRepository.save(requestedRoom);
+	}
+
+	private void checkHostelIsNotClosed(LocalDate checkin, LocalDate checkout) {
+		if(Season.findSeasonsForDates(checkin, checkout).stream().anyMatch(Season::isClosed)) {
+			throw new HostelClosedException();
+		}
+	}
+
+	public RoomRepository getRoomRepository() {
+		return roomRepository;
 	}
 }

@@ -3,6 +3,8 @@ package com.fdjgs.training.hotelcuzco.domain;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.util.stream.Collectors.toList;
+
 /**
  * Created by Lotsys on 05/06/2019.
  */
@@ -16,22 +18,33 @@ public class Room {
 
 	Integer capacity;
 
-	List<Reservation> reservations;
+	RoomType roomType;
+
+	List<Unavailability> unavailabilities;
 
 	private Room() {}
 
-	public static Room createRoom(String roomNumber, Integer floor, String description, Integer capacity) {
+	public static Room createRoom(String roomNumber, Integer floor, String description, Integer capacity, RoomType roomType) {
 		Room room = new Room();
 		room.capacity = capacity;
 		room.description = description;
 		room.floor = floor;
 		room.roomNumber = roomNumber;
-		room.reservations = new ArrayList<>();
+		room.roomType = roomType;
+		room.unavailabilities = new ArrayList<>();
 		return room;
 	}
 
 	public void book(Reservation reservation) {
-		reservations.add(reservation);
+		if(!this.isBookable(reservation)) {
+			throw new RoomUnavailableException(roomNumber);
+		}
+		unavailabilities.add(reservation);
+	}
+
+	public boolean isBookable(Reservation requestReservation) {
+		return unavailabilities.isEmpty()
+				|| unavailabilities.stream().allMatch(reservation -> reservation.isNotOverlapping(requestReservation));
 	}
 
 	public String getRoomNumber() {
@@ -42,8 +55,26 @@ public class Room {
 		return capacity;
 	}
 
-	public boolean isBookable(Reservation requestReservation) {
-		return reservations.isEmpty()
-				|| reservations.stream().allMatch(reservation -> reservation.isNotOverlapping(requestReservation));
+	public RoomType getRoomType() {
+		return roomType;
+	}
+
+	public List<Reservation> getReservations() {
+		return getTypedUnavailability(Reservation.class);
+	}
+
+	public List<PlannedMaintenance> getPlannedMaintenances() {
+		return getTypedUnavailability(PlannedMaintenance.class);
+	}
+
+	private <T extends Unavailability> List<T> getTypedUnavailability(Class<T> requestedClass) {
+		return unavailabilities.stream()
+				.filter(unavailability -> unavailability.getClass().isAssignableFrom(requestedClass))
+				.map(unavailability -> (T) unavailability)
+				.collect(toList());
+	}
+
+	public void planMaintenance(PlannedMaintenance plannedMaintenance) {
+		unavailabilities.add(plannedMaintenance);
 	}
 }
